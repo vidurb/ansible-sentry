@@ -1,5 +1,4 @@
 ---
-# tasks file for sentry
 - name: Install Sentry via snapd
   snap:
     name: sentry
