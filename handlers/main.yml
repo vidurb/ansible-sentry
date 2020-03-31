@@ -1,0 +1,6 @@
+---
+# handlers file for sentry
+- name: restart sentry
+  systemd:
+    name: "snap.sentry.*"
+    state: restarted

@@ -1,0 +1,15 @@
+{
+    "license": "UNLICENSED",
+    "lint-staged": {
+        "*.yml": "ansible-lint"
+    },
+    "husky": {
+        "hooks": {
+            "pre-commit": "lint-staged"
+        }
+    },
+    "devDependencies": {
+        "husky": ">=4",
+        "lint-staged": ">=10"
+    }
+}

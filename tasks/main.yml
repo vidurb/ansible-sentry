@@ -1,0 +1,163 @@
+---
+# tasks file for sentry
+- name: Install Sentry via snapd
+  snap:
+    name: sentry
+- name: Find Sentry config files
+  become: yes
+  become_user: root
+  command: sentry config discover
+  changed_when: false
+  failed_when: false
+  register: sentry_config
+- name: Set Sentry python config path
+  set_fact:
+    sentry_py_config: "{{ sentry_config.stdout_lines[0] }}"
+- name: Set Sentry yaml config path
+  set_fact:
+    sentry_yml_config: "{{ sentry_config.stdout_lines[1] }}"
+- name: Check if Sentry python config is initialized
+  stat:
+    path: "{{ sentry_py_config }}"
+  register: sentry_py_config_stat
+- name: Check if Sentry yaml config is initialized
+  stat:
+    path: "{{ sentry_yml_config }}"
+  register: sentry_yml_config_stat
+- name: Enable Sentry initialization if not already initialized
+  set_fact:
+    sentry_run_init: false
+  when: sentry_py_config_stat.stat.exists and sentry_yml_config_stat.stat.exists
+- name: Initialize Sentry
+  become: yes
+  become_user: root
+  command: sentry init
+  when: sentry_run_init
+- name: Sentry PY Configuration - database name
+  lineinfile:
+    regexp: "\\s{8}?\\'NAME\\': \\'\\w*\\',"
+    line: "        'NAME': '{{ sentry_db_name }}',"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - database user
+  lineinfile:
+    regexp: "\\s{8}?\\'USER\\': \\'\\w*\\',"
+    line: "        'USER': '{{ sentry_db_user }}',"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - database password
+  lineinfile:
+    regexp: "\\s{8}?\\'PASSWORD\\': \\'\\w*\\',"
+    line: "        'PASSWORD': '{{ sentry_db_password }}',"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - database host
+  lineinfile:
+    regexp: "\\s{8}?\\'HOST\\': \\'\\w*\\',"
+    line: "        'HOST': '{{ sentry_db_host }}',"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - database port
+  lineinfile:
+    regexp: "\\s{8}?\\'PORT\\': \\'\\w*\\',"
+    line: "        'PORT': '{{ sentry_db_port }}',"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - redis url
+  lineinfile:
+    regexp: "^BROKER_URL = "
+    line: "BROKER_URL = 'redis://{{ sentry_redis_host }}:{{ sentry_redis_port }}'"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - enable SSL header
+  lineinfile:
+    regexp: "^[# ]*SECURE_PROXY_SSL_HEADER = "
+    line: "SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - enable secure session cookie
+  lineinfile:
+    regexp: "^[# ]*SESSION_COOKIE_SECURE = "
+    line: "SESSION_COOKIE_SECURE = True"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - enable secure csrf cookie
+  lineinfile:
+    regexp: "^[# ]*CSRF_COOKIE_SECURE = "
+    line: "CSRF_COOKIE_SECURE = True"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - Sentry IP binding
+  lineinfile:
+    regexp: "^SENTRY_WEB_HOST = \\'[0-9.]*\\'"
+    line: "SENTRY_WEB_HOST = '{{ sentry_bind_ip }}'"
+    path: "{{ sentry_py_config }}"
+- name: Sentry PY Configuration - Sentry port binding
+  lineinfile:
+    regexp: "^SENTRY_WEB_PORT = \\d*"
+    line: "SENTRY_WEB_PORT = {{ sentry_bind_port }}"
+    path: "{{ sentry_py_config }}"
+- name: Sentry YAML Configuration - mail backend
+  lineinfile:
+    regexp: "^[# ]*mail\\.backend:"
+    line: "mail.backend: {{ sentry_mail_backend }}"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - mail host
+  lineinfile:
+    regexp: "^[# ]*mail\\.host:"
+    line: "mail.host: '{{ sentry_mail_host }}'"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - mail port
+  lineinfile:
+    regexp: "^[# ]*mail\\.port:"
+    line: "mail.port: {{ sentry_mail_port }}"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - mail username
+  lineinfile:
+    regexp: "^[# ]*mail\\.username:"
+    line: "mail.username: '{{ sentry_mail_username }}'"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - mail password
+  lineinfile:
+    regexp: '^[# ]*mail\.password:'
+    line: "mail.password: '{{ sentry_mail_password }}'"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - mail tls
+  lineinfile:
+    regexp: "^[# ]*mail\\.use-tls:"
+    line: "mail.use-tls: {{ sentry_mail_tls }}"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - mail address
+  lineinfile:
+    regexp: "^[# ]*mail\\.from:"
+    line: "mail.from: '{{ sentry_mail_address }}'"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration - redis host
+  lineinfile:
+    regexp: "^\\s{8}host: [a-z0-9.]*"
+    line: "        host: {{ sentry_redis_host }}"
+    path: "{{ sentry_yml_config }}"
+- name: Sentry YAML Configuration -- redis port
+  lineinfile:
+    regexp: "^\\s{8}port: [0-9]*"
+    line: "        port: {{ sentry_redis_port }}"
+    path: "{{ sentry_yml_config }}"
+- name: Add permissions for Sentry on local postgres
+  become: yes
+  become_user: postgres
+  postgresql_db:
+    name: "{{ sentry_db_name }}"
+    owner: "{{ sentry_db_user }}"
+  when: sentry_enable_local_postgres
+- name: Run Sentry migrations & setup
+  become: yes
+  become_user: root
+  command: sentry upgrade --noinput
+  register: sentry_upgrade
+  notify:
+  - restart sentry
+  - restart nginx
+  changed_when: sentry_upgrade.rc == 0
+  failed_when: sentry_upgrade.rc != 0
+- name: Assign DNS for Sentry
+  cloudflare_dns:
+    zone: "{{ sentry_hostname_domain }}"
+    record: "{{ sentry_hostname_subdomain | default('@', true) }}"
+    type: A
+    solo: true
+    proxied: yes
+    value: "{{ ansible_host }}"
+    account_api_token: "{{ sentry_cloudflare_api_token }}"
+    account_email: "{{ sentry_cloudflare_account_email }}"
+  when: sentry_enable_cloudflare

@@ -1,0 +1,24 @@
+---
+# defaults file for sentry
+sentry_hostname_domain: "example.com"
+sentry_hostname_subdomain: "sentry"
+sentry_enable_cloudflare: false
+sentry_enable_local_postgres: true
+sentry_enable_local_redis: true
+sentry_db_name: "sentry"
+sentry_db_user: "sentry"
+sentry_db_password: "insecurepassword"
+sentry_db_host: "127.0.0.1"
+sentry_db_port: 5432
+sentry_redis_host: "127.0.0.1"
+sentry_redis_port: 6379
+sentry_mail_backend: "dummy"
+sentry_mail_host:
+sentry_mail_port: 1234
+sentry_mail_username:
+sentry_mail_password:
+sentry_mail_tls: false
+sentry_mail_address:
+sentry_run_init: true
+sentry_bind_ip: 127.0.0.1
+sentry_bind_port: 9000
